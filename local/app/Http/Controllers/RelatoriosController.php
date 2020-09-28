@@ -4,38 +4,43 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Intervention\Image\ImageManagerStatic as Image;
 
-class RelatoriosController extends Controller{
+class RelatoriosController extends Controller
+{
 
-	public function aReceber($dataIni, $dataFim){
+	public function aReceber($dataIni, $dataFim)
+	{
 		$retorno = DB::select('SELECT SUM(valor_debito - valor_credito) AS total, 
 		\'Loja 1\' AS descricao FROM titulo_receber WHERE data_pagamento IS NULL AND data_vencimento >= \' ' . $dataIni . ' \' AND data_vencimento <= \' ' . $dataFim . ' \'');
 
 		return $retorno;
 	}
 
-	public function recebidos($dataIni, $dataFim){
+	public function recebidos($dataIni, $dataFim)
+	{
 		$retorno = DB::select('SELECT SUM(valor_lancamento) AS total, \'Loja 1\' AS descricao FROM lancamento_receber WHERE data_lancamento >= \' ' . $dataIni . ' \' AND data_lancamento <= \' ' . $dataFim . ' \'');
 
 		return $retorno;
 	}
 
-	public function faturados($dataIni, $dataFim){
+	public function faturados($dataIni, $dataFim)
+	{
 		$valor = 0;
 
 		$retorno = DB::select('SELECT SUM(valor_total_nota) AS total FROM saida_venda WHERE data_emissao >= \' ' . $dataIni . ' \' AND data_emissao <= \' ' . $dataFim . ' \'');
 
-		if($retorno){
+		if ($retorno) {
 			$valor = $retorno[0]->total;
 
 			$retorno = DB::select('SELECT COALESCE(SUM(valor_total_itens),0) AS total FROM saida_venda_consumidor WHERE data_documento >= \' ' . $dataIni . ' \' AND data_documento <= \' ' . $dataFim . ' \'');
 
-			if($retorno){
+			if ($retorno) {
 				$valor += $retorno[0]->total;
-				
+
 				$retorno = DB::select('SELECT COALESCE(SUM(valor_pagamento),0) AS total FROM venda_consumidor_pagamento WHERE data_vencimento >= \' ' . $dataIni . ' \' AND data_vencimento <= \' ' . $dataFim . ' \'');
 
-				if($retorno){
+				if ($retorno) {
 					$valor += $retorno[0]->total;
 				}
 			}
@@ -45,15 +50,16 @@ class RelatoriosController extends Controller{
 			'total' => $valor,
 			'descricao' => 'Loja 1'
 		];
- 
+
 		return $json;
-	}	
-
-	public function receberPrazo($dataIni, $dataFim){
-
 	}
 
-	public function recebidosPrazo($dataIni, $dataFim){
+	public function receberPrazo($dataIni, $dataFim)
+	{
+	}
+
+	public function recebidosPrazo($dataIni, $dataFim)
+	{
 		$retorno = DB::select('SELECT 
 									lc.descricao, 
 									lr.codigo_lancamento AS codigo, 
@@ -70,7 +76,8 @@ class RelatoriosController extends Controller{
 		return $retorno;
 	}
 
-	public function faturadosPrazo($dataIni, $dataFim){
+	public function faturadosPrazo($dataIni, $dataFim)
+	{
 		$retorno = DB::select('SELECT 
 									sum(valor) AS total, 
 									lanc.codigo, 
@@ -106,7 +113,8 @@ class RelatoriosController extends Controller{
 		return $retorno;
 	}
 
-	public function rankingClientes($dataIni, $dataFim, $codVendedor){
+	public function rankingClientes($dataIni, $dataFim, $codVendedor)
+	{
 
 		$retorno = DB::select('SELECT 
 						SUM(sv.valor_total_nota) AS total, 
@@ -129,7 +137,8 @@ class RelatoriosController extends Controller{
 		return $retorno;
 	}
 
-	public function rankingItens($dataIni, $dataFim, $codVendedor){
+	public function rankingItens($dataIni, $dataFim, $codVendedor)
+	{
 
 		$retorno = DB::select('SELECT 
 						SUM(sv.valor_total_nota) AS total, 
@@ -153,12 +162,13 @@ class RelatoriosController extends Controller{
 		return $retorno;
 	}
 
-	public function chequesAtrasados($codVendedor){
+	public function chequesAtrasados($codVendedor)
+	{
 
-        $retorno = '';
+		$retorno = '';
 
-        
-	    $retorno = DB::select('
+
+		$retorno = DB::select('
 		    						SELECT 
 		    							cl.codigo,
 		    							cr.codigo_banco,
@@ -175,19 +185,20 @@ class RelatoriosController extends Controller{
                							INNER JOIN banco ba ON cr.codigo_banco = ba.codigo 
                						WHERE 
                							cr.valor_debito - cr.valor_credito > 0');
-			
+
 
 		return $retorno;
 	}
 
-	public function titulosAtrasados($codVendedor){
+	public function titulosAtrasados($codVendedor)
+	{
 		$verificaConfgCliente = 0;
-        $retorno = '';
+		$retorno = '';
 
 		$verificaConfgCliente = DB::select('SELECT cliente_atend_mais_de_um_vdr FROM configuracoes LIMIT 1');
-        
-        //Verifica se o cliente é atendido por mais de um vendedor
-		if($verificaConfgCliente[0]->cliente_atend_mais_de_um_vdr == -1){
+
+		//Verifica se o cliente é atendido por mais de um vendedor
+		if ($verificaConfgCliente[0]->cliente_atend_mais_de_um_vdr == -1) {
 			$retorno = DB::select('SELECT 
 										cl.codigo As codigo_cliente,
               							dc.abreviatura,
@@ -205,7 +216,7 @@ class RelatoriosController extends Controller{
               							(tr.valor_debito - tr.valor_credito) > 0 AND
               							tr.data_vencimento <=  CURRENT_DATE  AND
               							vc.codigo_vendedor = ' . $codVendedor);
-		}else{
+		} else {
 			$retorno = DB::select('SELECT 
 										cl.codigo As codigo_cliente,
               							dc.abreviatura,
@@ -225,5 +236,40 @@ class RelatoriosController extends Controller{
 		}
 
 		return $retorno;
+	}
+
+	public function tabelaDePrecos(Request $request)
+	{
+		try {
+			//obtem o prazo padrão
+			$prazoPadrao = DB::select('select prazo_preco_base from configuracoes limit 1', []);
+			$prazoPadrao = $prazoPadrao[0]->prazo_preco_base;
+
+			$produtos = DB::select(
+				'SELECT
+							ip.codigo_item, 
+							it.descricao, 
+							ip.preco, 
+							(it.estoque - it.reserva) as estoque,
+							it.referencia,
+							un.abreviatura, 
+							un.quantidade as quantidade_unidade							
+						from 
+							item it 
+							inner join item_preco ip on it.codigo = ip.codigo_item
+							inner join unidade un on it.unidade_padrao_saida = un.codigo
+						where 
+							it.ativo = -1 
+							and ip.codigo_prazo = ? 
+							and (lower(it.descricao) like ? or lower(it.referencia) like ?)
+						order by 
+							it.descricao',
+				[$prazoPadrao, $request->search . '%', $request->search]
+			);
+
+			return json_encode((object) array('produtos' => $produtos));
+		} catch (\Throwable $th) {
+			//return $th;
+		}
 	}
 }
