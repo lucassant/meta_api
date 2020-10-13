@@ -18,3 +18,7 @@ Route::middleware('auth:api')->get('/user', function (Request $request) {
 });
 
 Route::post('/tabela-precos', 'RelatoriosController@tabelaDePrecos');
+
+Route::get('/produto/{codigo}', 'ProdutosController@getProdutoDetalhes');
+Route::get('/unidades/{codigoProduto}', 'ProdutosController@unidadesProduto');
+Route::get('/prazos/{codigoProduto}/{codigoUnidade}', 'ProdutosController@prazosProduto');

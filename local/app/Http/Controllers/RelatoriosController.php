@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-use Intervention\Image\ImageManagerStatic as Image;
+
 
 class RelatoriosController extends Controller
 {
@@ -256,7 +256,7 @@ class RelatoriosController extends Controller
 							un.quantidade as quantidade_unidade							
 						from 
 							item it 
-							inner join item_preco ip on it.codigo = ip.codigo_item
+							inner join item_preco ip on it.codigo = ip.codigo_item and ip.codigo_unidade = it.unidade_padrao_saida
 							inner join unidade un on it.unidade_padrao_saida = un.codigo
 						where 
 							it.ativo = -1 
@@ -269,7 +269,7 @@ class RelatoriosController extends Controller
 
 			return json_encode((object) array('produtos' => $produtos));
 		} catch (\Throwable $th) {
-			//return $th;
+			return $th;
 		}
 	}
 }
